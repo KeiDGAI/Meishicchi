@@ -18,7 +18,7 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
-    const { error: signUpError } = await supabase.auth.signUp({
+    const { data, error: signUpError } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -32,6 +32,11 @@ export default function SignupPage() {
 
     if (signUpError) {
       setError(signUpError.message);
+      return;
+    }
+
+    if (!data.session) {
+      setError("確認メールを開いてログインしてください。");
       return;
     }
 
