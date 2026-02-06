@@ -216,13 +216,13 @@ export default function HomePage() {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {categories.map((category) => (
-              <Link
+              <button
                 key={category.id}
-                href={`/categories/${category.id}`}
                 className="rounded-xl bg-white px-4 py-3 text-left shadow-sm"
+                onClick={() => router.push(`/categories/${category.id}`)}
               >
                 {category.name}
-              </Link>
+              </button>
             ))}
             {categories.length === 0 && (
               <div className="col-span-2 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
