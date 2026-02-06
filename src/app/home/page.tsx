@@ -19,6 +19,7 @@ import {
   type Notification,
   type UserProfile,
 } from "@/lib/db";
+import { supabase } from "@/lib/supabaseClient";
 
 type RecentCompletion = {
   id: string;
@@ -41,6 +42,11 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [familyInvite, setFamilyInvite] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    router.push("/login");
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -155,9 +161,17 @@ export default function HomePage() {
     return (
       <main className="min-h-screen bg-slate-50 text-slate-900">
         <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-6 px-6 py-8">
-          <div>
-            <p className="text-sm text-slate-500">ようこそ</p>
-            <h1 className="text-2xl font-bold">家族を作成または参加</h1>
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm text-slate-500">ようこそ</p>
+              <h1 className="text-2xl font-bold">家族を作成または参加</h1>
+            </div>
+            <button
+              className="text-sm underline"
+              onClick={handleLogout}
+            >
+              ログアウト
+            </button>
           </div>
           {actionError && (
             <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -211,14 +225,19 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-900">
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
-        <header className="space-y-2">
-          <p className="text-sm text-slate-500">おかえりなさい</p>
-          <h1 className="text-2xl font-bold">{profile.display_name}</h1>
-          {familyInvite && (
-            <p className="text-xs text-slate-500">
-              招待コード: <span className="font-semibold">{familyInvite}</span>
-            </p>
-          )}
+        <header className="flex items-start justify-between">
+          <div className="space-y-2">
+            <p className="text-sm text-slate-500">おかえりなさい</p>
+            <h1 className="text-2xl font-bold">{profile.display_name}</h1>
+            {familyInvite && (
+              <p className="text-xs text-slate-500">
+                招待コード: <span className="font-semibold">{familyInvite}</span>
+              </p>
+            )}
+          </div>
+          <button className="text-sm underline" onClick={handleLogout}>
+            ログアウト
+          </button>
         </header>
 
         {notifications.length > 0 && (
