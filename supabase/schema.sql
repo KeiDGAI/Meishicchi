@@ -127,6 +127,10 @@ create policy "users_select_family"
 on public.users for select
 using (family_id = public.current_family_id());
 
+create policy "users_select_self"
+on public.users for select
+using (id = auth.uid());
+
 create policy "users_insert_self"
 on public.users for insert
 with check (id = auth.uid());
