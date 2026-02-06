@@ -202,7 +202,12 @@ export async function listRecentCompletions(userId: string, limit = 5) {
     .order("completed_at", { ascending: false })
     .limit(limit);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as {
+    id: string;
+    points: number;
+    completed_at: string;
+    chore_tasks: { name: string }[] | null;
+  }[];
 }
 
 export async function listRewards() {

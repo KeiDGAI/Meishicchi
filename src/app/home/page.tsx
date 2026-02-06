@@ -24,7 +24,7 @@ type RecentCompletion = {
   id: string;
   points: number;
   completed_at: string;
-  chore_tasks: { name: string } | null;
+  chore_tasks: { name: string }[] | null;
 };
 
 export default function HomePage() {
@@ -68,7 +68,7 @@ export default function HomePage() {
 
         setFamilyInvite(family.invite_code);
         setCategories(categoryList);
-        setRecent(recentList as RecentCompletion[]);
+        setRecent(recentList);
         setTodayPoints(totals.todayPoints);
         setBalancePoints(totals.balancePoints);
         setNotifications(unread);
@@ -272,7 +272,7 @@ export default function HomePage() {
               recent.map((item) => (
                 <div key={item.id} className="rounded-xl bg-white p-4 shadow-sm">
                   <p className="font-medium">
-                    {item.chore_tasks?.name ?? "家事"}
+                    {item.chore_tasks?.[0]?.name ?? "家事"}
                   </p>
                   <p className="text-sm text-slate-500">
                     {new Date(item.completed_at).toLocaleString()} / {item.points} pt
