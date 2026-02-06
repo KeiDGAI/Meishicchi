@@ -120,6 +120,11 @@ create policy "families_select"
 on public.families for select
 using (id = public.current_family_id() or created_by = auth.uid());
 
+create policy "families_select_all"
+on public.families for select
+to authenticated
+using (auth.role() = 'authenticated');
+
 create policy "families_insert"
 on public.families for insert
 to authenticated

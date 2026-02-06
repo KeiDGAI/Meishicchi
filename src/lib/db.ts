@@ -122,6 +122,15 @@ export async function findFamilyByInviteCode(code: string) {
   return data as Family | null;
 }
 
+export async function listFamilies() {
+  const { data, error } = await supabase
+    .from("families")
+    .select("id, name, invite_code")
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as Family[];
+}
+
 export async function getFamily(familyId: string) {
   const { data, error } = await supabase
     .from("families")

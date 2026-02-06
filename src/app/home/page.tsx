@@ -12,11 +12,11 @@ import {
   listUnreadNotifications,
   markNotificationsRead,
   createFamily,
-  findFamilyByInviteCode,
   updateUserFamily,
   seedInitialData,
   deleteCompletion,
   getTasksByIds,
+  listFamilies,
   type Category,
   type Notification,
   type UserProfile,
@@ -43,7 +43,9 @@ export default function HomePage() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [familyName, setFamilyName] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  const [families, setFamilies] = useState<
+    { id: string; name: string | null; invite_code: string }[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [actionError, setActionError] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -71,6 +73,8 @@ export default function HomePage() {
         setProfile(userProfile);
 
         if (!userProfile.family_id) {
+          const familyList = await listFamilies();
+          setFamilies(familyList);
           setLoading(false);
           return;
         }
@@ -145,19 +149,14 @@ export default function HomePage() {
     }
   };
 
-  const handleJoinFamily = async () => {
+  const handleJoinFamily = async (familyId: string, inviteCode: string) => {
     const currentProfile = await ensureProfile();
     if (!currentProfile) return;
     setActionError(null);
     try {
-      const family = await findFamilyByInviteCode(inviteCode);
-      if (!family) {
-        setActionError("招待コードが見つかりませんでした");
-        return;
-      }
-      await updateUserFamily(currentProfile.id, family.id);
-      setProfile({ ...currentProfile, family_id: family.id });
-      setFamilyInvite(family.invite_code);
+      await updateUserFamily(currentProfile.id, familyId);
+      setProfile({ ...currentProfile, family_id: familyId });
+      setFamilyInvite(inviteCode);
     } catch (error) {
       const message =
         typeof error === "object" && error && "message" in error
@@ -220,19 +219,31 @@ export default function HomePage() {
             </button>
           </section>
           <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-lg font-semibold">招待コードで参加</h2>
-            <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 uppercase"
-              placeholder="招待コード"
-              value={inviteCode}
-              onChange={(event) => setInviteCode(event.target.value)}
-            />
-            <button
-              className="w-full rounded-lg border border-slate-300 px-4 py-2"
-              onClick={handleJoinFamily}
-            >
-              参加する
-            </button>
+            <h2 className="text-lg font-semibold">家族一覧から参加</h2>
+            {families.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                まだ家族が作成されていません。
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {families.map((family) => (
+                  <div
+                    key={family.id}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
+                  >
+                    <span className="text-sm">
+                      {family.name ?? "家族"}
+                    </span>
+                    <button
+                      className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+                      onClick={() => handleJoinFamily(family.id, family.invite_code)}
+                    >
+                      参加
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           </section>
           <Link className="text-sm underline" href="/login">
             ログイン画面へ戻る
