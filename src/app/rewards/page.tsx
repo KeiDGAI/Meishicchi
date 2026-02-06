@@ -90,6 +90,7 @@ export default function RewardsPage() {
     try {
       setMessage(null);
       await redeemReward(reward, familyId, displayName);
+      setBalancePoints((prev) => prev - reward.cost_points);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "交換に失敗");

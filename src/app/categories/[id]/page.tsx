@@ -44,7 +44,19 @@ export default function CategoryPage() {
         listTasksByCategory(categoryId),
       ]);
       setCategoryName(category.name);
-      setCategoryIcon(category.icon ?? "📌");
+      const fallbackIcon =
+        category.name === "料理"
+          ? "🍳"
+          : category.name === "洗濯"
+          ? "🧺"
+          : category.name === "掃除"
+          ? "🧹"
+          : category.name === "その他家事"
+          ? "🧴"
+          : category.name === "子守"
+          ? "🍼"
+          : "📌";
+      setCategoryIcon(category.icon ?? fallbackIcon);
 
       const lastMap = await listTaskLastCompletions(
         profile.id,

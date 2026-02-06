@@ -16,6 +16,7 @@ import {
   updateUserFamily,
   seedInitialData,
   deleteCompletion,
+  getTasksByIds,
   type Category,
   type Notification,
   type UserProfile,
@@ -26,7 +27,16 @@ type RecentCompletion = {
   id: string;
   points: number;
   completed_at: string;
-  chore_tasks: { name: string }[] | null;
+  task_id: string;
+  task_name?: string;
+};
+
+const iconFallbackMap: Record<string, string> = {
+  料理: "🍳",
+  洗濯: "🧺",
+  掃除: "🧹",
+  その他家事: "🧴",
+  子守: "🍼",
 };
 
 export default function HomePage() {
@@ -76,7 +86,15 @@ export default function HomePage() {
 
         setFamilyInvite(family.invite_code);
         setCategories(categoryList);
-        setRecent(recentList);
+        const taskIds = recentList.map((item) => item.task_id);
+        const tasks = await getTasksByIds(taskIds);
+        const taskMap = new Map(tasks.map((task) => [task.id, task.name]));
+        setRecent(
+          recentList.map((item) => ({
+            ...item,
+            task_name: taskMap.get(item.task_id),
+          }))
+        );
         setTodayPoints(totals.todayPoints);
         setBalancePoints(totals.balancePoints);
         setNotifications(unread);
@@ -283,7 +301,9 @@ export default function HomePage() {
                 onClick={() => router.push(`/categories/${category.id}`)}
               >
                 <div className="flex items-center gap-2">
-                  <span className="text-xl">{category.icon ?? "📌"}</span>
+                  <span className="text-xl">
+                    {category.icon ?? iconFallbackMap[category.name] ?? "📌"}
+                  </span>
                   <span>{category.name}</span>
                 </div>
               </button>
@@ -341,7 +361,7 @@ export default function HomePage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium">
-                        {item.chore_tasks?.[0]?.name ?? "家事"}
+                        {item.task_name ?? "削除済みの家事"}
                       </p>
                       <p className="text-sm text-slate-500">
                         {new Date(item.completed_at).toLocaleString()} /{" "}

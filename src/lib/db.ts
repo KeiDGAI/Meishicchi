@@ -289,7 +289,7 @@ export async function recordCompletion(taskId: string, points: number, familyId:
 export async function listRecentCompletions(userId: string, limit = 5) {
   const { data, error } = await supabase
     .from("chore_completions")
-    .select("id, points, completed_at, chore_tasks(name)")
+    .select("id, points, completed_at, task_id")
     .eq("user_id", userId)
     .order("completed_at", { ascending: false })
     .limit(limit);
@@ -298,8 +298,18 @@ export async function listRecentCompletions(userId: string, limit = 5) {
     id: string;
     points: number;
     completed_at: string;
-    chore_tasks: { name: string }[] | null;
+    task_id: string;
   }[];
+}
+
+export async function getTasksByIds(taskIds: string[]) {
+  if (taskIds.length === 0) return [];
+  const { data, error } = await supabase
+    .from("chore_tasks")
+    .select("id, name")
+    .in("id", taskIds);
+  if (error) throw error;
+  return (data ?? []) as { id: string; name: string }[];
 }
 
 export async function deleteCompletion(completionId: string) {

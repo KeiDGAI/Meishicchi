@@ -12,6 +12,13 @@ import {
 } from "@/lib/db";
 
 const iconOptions = ["🍳", "🧺", "🧹", "🧴", "🍼", "🧼", "🧊", "🧽", "🪴", "📌"];
+const iconFallbackMap: Record<string, string> = {
+  料理: "🍳",
+  洗濯: "🧺",
+  掃除: "🧹",
+  その他家事: "🧴",
+  子守: "🍼",
+};
 
 export default function CategoryManagePage() {
   const [categories, setCategories] = useState<Category[]>([]);
@@ -187,7 +194,9 @@ export default function CategoryManagePage() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-xl">{category.icon ?? "📌"}</span>
+                        <span className="text-xl">
+                          {category.icon ?? iconFallbackMap[category.name] ?? "📌"}
+                        </span>
                         <span className="font-medium">{category.name}</span>
                       </div>
                       <div className="flex gap-2">
