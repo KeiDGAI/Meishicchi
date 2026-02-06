@@ -119,7 +119,8 @@ using (id = public.current_family_id());
 
 create policy "families_insert"
 on public.families for insert
-with check (auth.uid() is not null);
+to authenticated
+with check (auth.role() = 'authenticated');
 
 create policy "families_update"
 on public.families for update
