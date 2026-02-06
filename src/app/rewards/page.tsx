@@ -9,6 +9,7 @@ import {
   getUserPointTotals,
   listRewards,
   redeemReward,
+  updateReward,
   type Reward,
 } from "@/lib/db";
 
@@ -22,6 +23,9 @@ export default function RewardsPage() {
   const [costPoints, setCostPoints] = useState(0);
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCost, setEditCost] = useState(0);
 
   const load = async () => {
     try {
@@ -93,7 +97,7 @@ export default function RewardsPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-center justify-between">
           <div>
@@ -107,7 +111,7 @@ export default function RewardsPage() {
 
         {message && <p className="text-sm text-slate-600">{message}</p>}
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
+        <section className="rounded-2xl bg-white/90 p-5 shadow-sm border border-amber-100 space-y-3">
           <h2 className="text-lg font-semibold">ご褒美を追加</h2>
           <input
             className="w-full rounded-lg border border-slate-300 px-3 py-2"
@@ -143,29 +147,85 @@ export default function RewardsPage() {
           ) : (
             <div className="space-y-3">
               {rewards.map((reward) => (
-                <div key={reward.id} className="rounded-xl bg-white p-4 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">{reward.name}</p>
-                      <p className="text-sm text-slate-500">
-                        {reward.cost_points} pt
-                      </p>
+                <div key={reward.id} className="rounded-xl bg-white/90 p-4 shadow-sm border border-rose-100">
+                  {editingId === reward.id ? (
+                    <div className="space-y-3">
+                      <input
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                        value={editName}
+                        onChange={(event) => setEditName(event.target.value)}
+                      />
+                      <input
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2"
+                        type="number"
+                        min={0}
+                        value={editCost || ""}
+                        onChange={(event) => setEditCost(Number(event.target.value))}
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          onClick={async () => {
+                            if (!editName.trim() || editCost <= 0) {
+                              setMessage("名称と必要ポイントを入力してください");
+                              return;
+                            }
+                            try {
+                              setMessage(null);
+                              await updateReward(reward.id, editName.trim(), editCost);
+                              setEditingId(null);
+                              await load();
+                            } catch (error) {
+                              setMessage(
+                                error instanceof Error ? error.message : "更新に失敗"
+                              );
+                            }
+                          }}
+                        >
+                          保存
+                        </button>
+                        <button
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          onClick={() => setEditingId(null)}
+                        >
+                          キャンセル
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex gap-2">
-                      <button
-                        className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
-                        onClick={() => handleRedeem(reward)}
-                      >
-                        交換
-                      </button>
-                      <button
-                        className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
-                        onClick={() => handleDelete(reward.id)}
-                      >
-                        削除
-                      </button>
+                  ) : (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium">{reward.name}</p>
+                        <p className="text-sm text-slate-500">
+                          {reward.cost_points} pt
+                        </p>
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          onClick={() => handleRedeem(reward)}
+                        >
+                          交換
+                        </button>
+                        <button
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          onClick={() => {
+                            setEditingId(reward.id);
+                            setEditName(reward.name);
+                            setEditCost(reward.cost_points);
+                          }}
+                        >
+                          編集
+                        </button>
+                        <button
+                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
+                          onClick={() => handleDelete(reward.id)}
+                        >
+                          削除
+                        </button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ))}
             </div>

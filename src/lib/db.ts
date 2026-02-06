@@ -16,6 +16,7 @@ export type Family = {
 export type Category = {
   id: string;
   name: string;
+  icon: string | null;
 };
 
 export type Task = {
@@ -23,6 +24,7 @@ export type Task = {
   name: string;
   points: number;
   category_id: string;
+  created_at?: string;
 };
 
 export type Reward = {
@@ -122,10 +124,20 @@ export async function getFamily(familyId: string) {
   return data as Family;
 }
 
+export async function getCategory(categoryId: string) {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("id, name, icon")
+    .eq("id", categoryId)
+    .single();
+  if (error) throw error;
+  return data as Category;
+}
+
 export async function listCategories() {
   const { data, error } = await supabase
     .from("categories")
-    .select("id, name")
+    .select("id, name, icon")
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Category[];
@@ -148,6 +160,7 @@ export async function seedInitialData(familyId: string) {
       initialCategories.map((category) => ({
         family_id: familyId,
         name: category.name,
+        icon: category.icon,
       }))
     )
     .select("id, name");
@@ -179,12 +192,86 @@ export async function seedInitialData(familyId: string) {
 export async function listTasksByCategory(categoryId: string) {
   const { data, error } = await supabase
     .from("chore_tasks")
-    .select("id, name, points, category_id")
+    .select("id, name, points, category_id, created_at")
     .eq("category_id", categoryId)
     .eq("is_active", true)
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as Task[];
+}
+
+export async function createCategory(
+  familyId: string,
+  name: string,
+  icon: string | null
+) {
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({
+      family_id: familyId,
+      name,
+      icon,
+    })
+    .select("id, name, icon")
+    .single();
+  if (error) throw error;
+  return data as Category;
+}
+
+export async function updateCategory(
+  categoryId: string,
+  name: string,
+  icon: string | null
+) {
+  const { data, error } = await supabase
+    .from("categories")
+    .update({ name, icon })
+    .eq("id", categoryId)
+    .select("id, name, icon")
+    .single();
+  if (error) throw error;
+  return data as Category;
+}
+
+export async function deleteCategory(categoryId: string) {
+  const { error } = await supabase.from("categories").delete().eq("id", categoryId);
+  if (error) throw error;
+}
+
+export async function createTask(
+  familyId: string,
+  categoryId: string,
+  name: string,
+  points: number
+) {
+  const { data, error } = await supabase
+    .from("chore_tasks")
+    .insert({
+      family_id: familyId,
+      category_id: categoryId,
+      name,
+      points,
+    })
+    .select("id, name, points, category_id, created_at")
+    .single();
+  if (error) throw error;
+  return data as Task;
+}
+
+export async function updateTask(taskId: string, name: string, points: number) {
+  const { data, error } = await supabase
+    .from("chore_tasks")
+    .update({ name, points })
+    .eq("id", taskId)
+    .select("id, name, points, category_id, created_at")
+    .single();
+  if (error) throw error;
+  return data as Task;
+}
+
+export async function deleteTask(taskId: string) {
+  const { error } = await supabase.from("chore_tasks").delete().eq("id", taskId);
+  if (error) throw error;
 }
 
 export async function recordCompletion(taskId: string, points: number, familyId: string) {
@@ -215,6 +302,32 @@ export async function listRecentCompletions(userId: string, limit = 5) {
   }[];
 }
 
+export async function deleteCompletion(completionId: string) {
+  const { error } = await supabase
+    .from("chore_completions")
+    .delete()
+    .eq("id", completionId);
+  if (error) throw error;
+}
+
+export async function listTaskLastCompletions(userId: string, taskIds: string[]) {
+  if (taskIds.length === 0) return new Map<string, string>();
+  const { data, error } = await supabase
+    .from("chore_completions")
+    .select("task_id, completed_at")
+    .eq("user_id", userId)
+    .in("task_id", taskIds);
+  if (error) throw error;
+  const map = new Map<string, string>();
+  (data ?? []).forEach((row) => {
+    const existing = map.get(row.task_id);
+    if (!existing || new Date(row.completed_at) > new Date(existing)) {
+      map.set(row.task_id, row.completed_at);
+    }
+  });
+  return map;
+}
+
 export async function listRewards() {
   const { data, error } = await supabase
     .from("rewards")
@@ -241,6 +354,17 @@ export async function createReward(name: string, costPoints: number, familyId: s
 export async function deleteReward(rewardId: string) {
   const { error } = await supabase.from("rewards").delete().eq("id", rewardId);
   if (error) throw error;
+}
+
+export async function updateReward(rewardId: string, name: string, costPoints: number) {
+  const { data, error } = await supabase
+    .from("rewards")
+    .update({ name, cost_points: costPoints })
+    .eq("id", rewardId)
+    .select("id, name, cost_points")
+    .single();
+  if (error) throw error;
+  return data as Reward;
 }
 
 export async function getUserPointTotals(userId: string) {

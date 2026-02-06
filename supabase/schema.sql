@@ -47,6 +47,7 @@ create table if not exists public.categories (
   id uuid primary key default gen_random_uuid(),
   family_id uuid not null references public.families(id) on delete cascade,
   name text not null,
+  icon text,
   created_at timestamptz not null default now()
 );
 

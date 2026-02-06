@@ -15,6 +15,7 @@ import {
   findFamilyByInviteCode,
   updateUserFamily,
   seedInitialData,
+  deleteCompletion,
   type Category,
   type Notification,
   type UserProfile,
@@ -42,6 +43,7 @@ export default function HomePage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [familyInvite, setFamilyInvite] = useState<string | null>(null);
   const [seeding, setSeeding] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -149,7 +151,7 @@ export default function HomePage() {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
         <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-6">
           <p className="text-slate-600">読み込み中...</p>
         </div>
@@ -159,7 +161,7 @@ export default function HomePage() {
 
   if (!profile?.family_id) {
     return (
-      <main className="min-h-screen bg-slate-50 text-slate-900">
+      <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
         <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-6 px-6 py-8">
           <div className="flex items-start justify-between">
             <div>
@@ -223,7 +225,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-start justify-between">
           <div className="space-y-2">
@@ -251,12 +253,12 @@ export default function HomePage() {
           </section>
         )}
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl bg-white/90 p-5 shadow-sm border border-amber-100">
           <p className="text-sm text-slate-500">今日のポイント</p>
           <p className="text-3xl font-bold">{todayPoints} pt</p>
         </section>
 
-        <section className="rounded-2xl bg-white p-5 shadow-sm">
+        <section className="rounded-2xl bg-white/90 p-5 shadow-sm border border-sky-100">
           <p className="text-sm text-slate-500">累計保有ポイント</p>
           <p className="text-3xl font-bold">{balancePoints} pt</p>
         </section>
@@ -264,22 +266,30 @@ export default function HomePage() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">家事カテゴリ</h2>
-            <Link className="text-sm underline" href="/rewards">
-              ご褒美管理へ
-            </Link>
+            <div className="flex items-center gap-3 text-sm">
+              <Link className="underline" href="/categories/manage">
+                カテゴリ管理
+              </Link>
+              <Link className="underline" href="/rewards">
+                ご褒美管理へ
+              </Link>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             {categories.map((category) => (
               <button
                 key={category.id}
-                className="rounded-xl bg-white px-4 py-3 text-left shadow-sm"
+                className="rounded-xl bg-white/90 px-4 py-3 text-left shadow-sm border border-rose-100"
                 onClick={() => router.push(`/categories/${category.id}`)}
               >
-                {category.name}
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{category.icon ?? "📌"}</span>
+                  <span>{category.name}</span>
+                </div>
               </button>
             ))}
             {categories.length === 0 && (
-              <div className="col-span-2 rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+              <div className="col-span-2 rounded-xl border border-dashed border-slate-300 bg-white/80 p-4 text-sm text-slate-600">
                 <p className="font-medium">カテゴリがまだありません。</p>
                 <p>初期データを投入するとすぐに使い始められます。</p>
                 <button
@@ -316,7 +326,7 @@ export default function HomePage() {
           <h2 className="text-lg font-semibold">直近の家事（自分）</h2>
           <div className="space-y-2">
             {recent.length === 0 ? (
-              <div className="rounded-xl bg-white p-4 shadow-sm">
+              <div className="rounded-xl bg-white/90 p-4 shadow-sm">
                 <p className="font-medium">家事履歴がまだありません</p>
                 <p className="text-sm text-slate-500">
                   カテゴリから家事を登録しましょう
@@ -324,13 +334,46 @@ export default function HomePage() {
               </div>
             ) : (
               recent.map((item) => (
-                <div key={item.id} className="rounded-xl bg-white p-4 shadow-sm">
-                  <p className="font-medium">
-                    {item.chore_tasks?.[0]?.name ?? "家事"}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {new Date(item.completed_at).toLocaleString()} / {item.points} pt
-                  </p>
+                <div
+                  key={item.id}
+                  className="rounded-xl bg-white/90 p-4 shadow-sm border border-amber-100"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium">
+                        {item.chore_tasks?.[0]?.name ?? "家事"}
+                      </p>
+                      <p className="text-sm text-slate-500">
+                        {new Date(item.completed_at).toLocaleString()} /{" "}
+                        {item.points} pt
+                      </p>
+                    </div>
+                    <button
+                      className="text-sm text-red-600 underline disabled:opacity-60"
+                      onClick={async () => {
+                        setDeletingId(item.id);
+                        try {
+                          await deleteCompletion(item.id);
+                          const next = recent.filter((row) => row.id !== item.id);
+                          setRecent(next);
+                          if (profile?.id) {
+                            const totals = await getUserPointTotals(profile.id);
+                            setTodayPoints(totals.todayPoints);
+                            setBalancePoints(totals.balancePoints);
+                          }
+                        } catch (error) {
+                          setActionError(
+                            error instanceof Error ? error.message : "削除に失敗"
+                          );
+                        } finally {
+                          setDeletingId(null);
+                        }
+                      }}
+                      disabled={deletingId === item.id}
+                    >
+                      {deletingId === item.id ? "削除中..." : "削除"}
+                    </button>
+                  </div>
                 </div>
               ))
             )}

@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col justify-center gap-8 px-6">
         <div className="space-y-2">
           <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">
@@ -22,7 +22,7 @@ export default function Home() {
             ログイン
           </Link>
           <Link
-            className="rounded-xl border border-slate-300 px-4 py-3 text-center"
+            className="rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-center"
             href="/signup"
           >
             新規登録

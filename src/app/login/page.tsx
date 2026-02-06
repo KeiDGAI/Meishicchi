@@ -29,10 +29,10 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-900">
+    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto flex min-h-screen w-full max-w-md flex-col justify-center gap-6 px-6">
         <h1 className="text-2xl font-bold">ログイン</h1>
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleLogin} className="space-y-4 rounded-2xl bg-white/90 p-5 shadow-sm border border-amber-100">
           <div className="space-y-2">
             <label className="text-sm font-medium">メールアドレス</label>
             <input

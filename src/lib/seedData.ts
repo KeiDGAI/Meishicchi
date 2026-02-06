@@ -1,6 +1,7 @@
 export const initialCategories = [
   {
     name: "料理",
+    icon: "🍳",
     tasks: [
       { name: "家族のごはん", points: 100 },
       { name: "1人分皿洗い", points: 20 },
@@ -21,6 +22,7 @@ export const initialCategories = [
   },
   {
     name: "洗濯",
+    icon: "🧺",
     tasks: [
       { name: "洗濯洗い", points: 50 },
       { name: "洗濯干し", points: 50 },
@@ -33,6 +35,7 @@ export const initialCategories = [
   },
   {
     name: "掃除",
+    icon: "🧹",
     tasks: [
       { name: "風呂掃除", points: 20 },
       { name: "ごみ捨て", points: 20 },
@@ -47,6 +50,7 @@ export const initialCategories = [
   },
   {
     name: "その他家事",
+    icon: "🧴",
     tasks: [
       { name: "加湿器水入れ", points: 10 },
       { name: "パキラ水やり", points: 10 },
@@ -57,6 +61,7 @@ export const initialCategories = [
   },
   {
     name: "子守",
+    icon: "🍼",
     tasks: [
       { name: "授乳", points: 50 },
       { name: "オムツ変え", points: 20 },
