@@ -20,6 +20,9 @@ create or replace function public.current_family_id()
 returns uuid
 language sql
 stable
+security definer
+set search_path = public, auth
+set row_security = off
 as $$
   select family_id from public.users where id = auth.uid();
 $$;
