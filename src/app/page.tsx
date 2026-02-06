@@ -16,13 +16,13 @@ export default function Home() {
 
         <div className="flex flex-col gap-3">
           <Link
-            className="rounded-xl bg-slate-900 px-4 py-3 text-center text-white"
+            className="rounded-xl bg-slate-900 px-4 py-3 text-center text-white btn-ripple btn-press"
             href="/login"
           >
             ログイン
           </Link>
           <Link
-            className="rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-center"
+            className="rounded-xl border border-slate-300 bg-white/80 px-4 py-3 text-center btn-ripple btn-press"
             href="/signup"
           >
             新規登録

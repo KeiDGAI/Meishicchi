@@ -137,7 +137,7 @@ export default function RewardsPage() {
             onChange={(event) => setCostPoints(Number(event.target.value))}
           />
           <button
-            className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white"
+            className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white btn-ripple btn-press"
             onClick={handleCreate}
             disabled={loading}
           >
@@ -173,7 +173,7 @@ export default function RewardsPage() {
                       />
                       <div className="flex gap-2">
                         <button
-                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white btn-ripple btn-press"
                           onClick={async () => {
                             if (!editName.trim() || editCost <= 0) {
                               setMessage("名称と必要ポイントを入力してください");
@@ -194,7 +194,7 @@ export default function RewardsPage() {
                           保存
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm btn-ripple btn-press"
                           onClick={() => setEditingId(null)}
                         >
                           キャンセル
@@ -223,13 +223,13 @@ export default function RewardsPage() {
                           rows={2}
                         />
                         <button
-                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white btn-ripple btn-press"
                           onClick={() => handleRedeem(reward)}
                         >
                           交換
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm btn-ripple btn-press"
                           onClick={() => {
                             setEditingId(reward.id);
                             setEditName(reward.name);
@@ -239,7 +239,7 @@ export default function RewardsPage() {
                           編集
                         </button>
                         <button
-                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
+                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 btn-ripple btn-press"
                           onClick={() => handleDelete(reward.id)}
                         >
                           削除

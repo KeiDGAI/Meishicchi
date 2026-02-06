@@ -189,7 +189,7 @@ export default function CategoryPage() {
             onChange={(event) => setNewPoints(Number(event.target.value))}
           />
           <button
-            className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white"
+            className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white btn-ripple btn-press"
             onClick={handleCreate}
           >
             追加する
@@ -224,13 +224,13 @@ export default function CategoryPage() {
                       />
                       <div className="flex gap-2">
                         <button
-                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white btn-ripple btn-press"
                           onClick={() => handleUpdate(task.id)}
                         >
                           保存
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm btn-ripple btn-press"
                           onClick={() => setEditingId(null)}
                         >
                           キャンセル
@@ -245,19 +245,19 @@ export default function CategoryPage() {
                       </div>
                       <div className="flex gap-2">
                         <button
-                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
+                          className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white btn-ripple btn-press"
                           onClick={() => handleComplete(task)}
                         >
                           完了
                         </button>
                         <button
-                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                          className="rounded-lg border border-slate-300 px-3 py-2 text-sm btn-ripple btn-press"
                           onClick={() => startEdit(task)}
                         >
                           編集
                         </button>
                         <button
-                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600"
+                          className="rounded-lg border border-red-200 px-3 py-2 text-sm text-red-600 btn-ripple btn-press"
                           onClick={() => handleDelete(task.id)}
                         >
                           削除

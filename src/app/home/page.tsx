@@ -186,7 +186,7 @@ export default function HomePage() {
               <h1 className="text-2xl font-bold">家族を作成または参加</h1>
             </div>
             <button
-              className="text-sm underline"
+              className="text-sm underline btn-press"
               onClick={handleLogout}
             >
               ログアウト
@@ -212,7 +212,7 @@ export default function HomePage() {
               onChange={(event) => setFamilyName(event.target.value)}
             />
             <button
-              className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white"
+              className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white btn-ripple btn-press"
               onClick={handleCreateFamily}
             >
               作成する
@@ -235,7 +235,7 @@ export default function HomePage() {
                       {family.name ?? "家族"}
                     </span>
                     <button
-                      className="rounded-lg border border-slate-300 px-3 py-1 text-sm"
+                      className="rounded-lg border border-slate-300 px-3 py-1 text-sm btn-ripple btn-press"
                       onClick={() => handleJoinFamily(family.id, family.invite_code)}
                     >
                       参加
@@ -266,7 +266,7 @@ export default function HomePage() {
               </p>
             )}
           </div>
-          <button className="text-sm underline" onClick={handleLogout}>
+          <button className="text-sm underline btn-press" onClick={handleLogout}>
             ログアウト
           </button>
         </header>
@@ -311,7 +311,7 @@ export default function HomePage() {
             {categories.map((category) => (
               <button
                 key={category.id}
-                className="rounded-xl bg-white/90 px-4 py-3 text-left shadow-sm border border-rose-100"
+                className="rounded-xl bg-white/90 px-4 py-3 text-left shadow-sm border border-rose-100 btn-ripple btn-press"
                 onClick={() => router.push(`/categories/${category.id}`)}
               >
                 <div className="flex items-center gap-2">
@@ -327,7 +327,7 @@ export default function HomePage() {
                 <p className="font-medium">カテゴリがまだありません。</p>
                 <p>初期データを投入するとすぐに使い始められます。</p>
                 <button
-                  className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-white disabled:opacity-60"
+                  className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-white disabled:opacity-60 btn-ripple btn-press"
                   onClick={async () => {
                     if (!profile?.family_id) return;
                     setSeeding(true);
@@ -383,7 +383,7 @@ export default function HomePage() {
                       </p>
                     </div>
                     <button
-                      className="text-sm text-red-600 underline disabled:opacity-60"
+                      className="text-sm text-red-600 underline disabled:opacity-60 btn-press"
                       onClick={async () => {
                         setDeletingId(item.id);
                         try {
