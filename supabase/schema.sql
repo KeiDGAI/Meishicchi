@@ -31,6 +31,7 @@ $$;
 create table if not exists public.families (
   id uuid primary key default gen_random_uuid(),
   name text,
+  created_by uuid references auth.users(id) on delete set null,
   invite_code text unique not null default public.generate_invite_code(),
   created_at timestamptz not null default now()
 );
@@ -115,7 +116,7 @@ alter table public.notifications enable row level security;
 -- Families
 create policy "families_select"
 on public.families for select
-using (id = public.current_family_id());
+using (id = public.current_family_id() or created_by = auth.uid());
 
 create policy "families_insert"
 on public.families for insert

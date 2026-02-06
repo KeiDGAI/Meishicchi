@@ -87,9 +87,14 @@ export async function updateUserFamily(userId: string, familyId: string) {
 }
 
 export async function createFamily(name: string | null) {
+  const user = await getSessionUser();
+  if (!user) throw new Error("not authenticated");
   const { data, error } = await supabase
     .from("families")
-    .insert({ name: name && name.trim().length > 0 ? name.trim() : null })
+    .insert({
+      name: name && name.trim().length > 0 ? name.trim() : null,
+      created_by: user.id,
+    })
     .select("id, name, invite_code")
     .single();
   if (error) throw error;
