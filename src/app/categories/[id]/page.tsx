@@ -29,6 +29,7 @@ export default function CategoryPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editPoints, setEditPoints] = useState(0);
+  const [toast, setToast] = useState<string | null>(null);
 
   const load = async () => {
     try {
@@ -96,7 +97,8 @@ export default function CategoryPage() {
         return;
       }
       await recordCompletion(task.id, task.points, familyId);
-      setMessage(`${task.name} を登録しました`);
+      setToast(`${task.name} を登録しました`);
+      setTimeout(() => setToast(null), 1600);
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "登録に失敗");
@@ -153,6 +155,11 @@ export default function CategoryPage() {
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
+      {toast && (
+        <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-full bg-slate-900 px-4 py-2 text-sm text-white shadow-lg">
+          {toast}
+        </div>
+      )}
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-center justify-between">
           <div className="flex items-center gap-2">
