@@ -77,7 +77,11 @@ export default function HomePage() {
           await markNotificationsRead(unread.map((item) => item.id));
         }
       } catch (error) {
-        setActionError(error instanceof Error ? error.message : "読み込み失敗");
+        const message =
+          typeof error === "object" && error && "message" in error
+            ? String((error as { message: unknown }).message)
+            : "読み込み失敗";
+        setActionError(message);
       } finally {
         setLoading(false);
       }
@@ -86,21 +90,38 @@ export default function HomePage() {
     load();
   }, [router]);
 
+  const ensureProfile = async () => {
+    if (profile) return profile;
+    const userProfile = await getOrCreateUserProfile();
+    if (!userProfile) {
+      router.push("/login");
+      return null;
+    }
+    setProfile(userProfile);
+    return userProfile;
+  };
+
   const handleCreateFamily = async () => {
-    if (!profile) return;
+    const currentProfile = await ensureProfile();
+    if (!currentProfile) return;
     setActionError(null);
     try {
       const family = await createFamily(familyName || null);
-      await updateUserFamily(profile.id, family.id);
-      setProfile({ ...profile, family_id: family.id });
+      await updateUserFamily(currentProfile.id, family.id);
+      setProfile({ ...currentProfile, family_id: family.id });
       setFamilyInvite(family.invite_code);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "作成に失敗");
+      const message =
+        typeof error === "object" && error && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "作成に失敗";
+      setActionError(message);
     }
   };
 
   const handleJoinFamily = async () => {
-    if (!profile) return;
+    const currentProfile = await ensureProfile();
+    if (!currentProfile) return;
     setActionError(null);
     try {
       const family = await findFamilyByInviteCode(inviteCode);
@@ -108,11 +129,15 @@ export default function HomePage() {
         setActionError("招待コードが見つかりませんでした");
         return;
       }
-      await updateUserFamily(profile.id, family.id);
-      setProfile({ ...profile, family_id: family.id });
+      await updateUserFamily(currentProfile.id, family.id);
+      setProfile({ ...currentProfile, family_id: family.id });
       setFamilyInvite(family.invite_code);
     } catch (error) {
-      setActionError(error instanceof Error ? error.message : "参加に失敗");
+      const message =
+        typeof error === "object" && error && "message" in error
+          ? String((error as { message: unknown }).message)
+          : "参加に失敗";
+      setActionError(message);
     }
   };
 
@@ -134,7 +159,17 @@ export default function HomePage() {
             <p className="text-sm text-slate-500">ようこそ</p>
             <h1 className="text-2xl font-bold">家族を作成または参加</h1>
           </div>
-          {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+          {actionError && (
+            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+              <p>{actionError}</p>
+              <button
+                className="mt-2 underline"
+                onClick={() => window.location.reload()}
+              >
+                再読み込み
+              </button>
+            </div>
+          )}
           <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
             <h2 className="text-lg font-semibold">家族を作成</h2>
             <input
