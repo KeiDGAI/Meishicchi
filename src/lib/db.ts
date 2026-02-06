@@ -132,6 +132,16 @@ export async function getFamily(familyId: string) {
   return data as Family;
 }
 
+export async function listFamilyMembers(familyId: string) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id, display_name")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as { id: string; display_name: string }[];
+}
+
 export async function getCategory(categoryId: string) {
   const { data, error } = await supabase
     .from("categories")

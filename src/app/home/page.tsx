@@ -285,6 +285,9 @@ export default function HomePage() {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">家事カテゴリ</h2>
             <div className="flex items-center gap-3 text-sm">
+              <Link className="underline" href="/family">
+                家族の状況
+              </Link>
               <Link className="underline" href="/categories/manage">
                 カテゴリ管理
               </Link>
