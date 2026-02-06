@@ -84,6 +84,7 @@ create table if not exists public.reward_redemptions (
   reward_id uuid not null references public.rewards(id) on delete cascade,
   user_id uuid not null references auth.users(id) on delete cascade,
   points_spent integer not null check (points_spent >= 0),
+  comment text,
   redeemed_at timestamptz not null default now()
 );
 

@@ -8,9 +8,11 @@ import {
   getOrCreateUserProfile,
   getUserPointTotals,
   listRewards,
+  listRewardRedemptions,
   redeemReward,
   updateReward,
   type Reward,
+  type RewardRedemption,
 } from "@/lib/db";
 
 export default function RewardsPage() {
@@ -26,6 +28,8 @@ export default function RewardsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [editCost, setEditCost] = useState(0);
+  const [comments, setComments] = useState<Record<string, string>>({});
+  const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
 
   const load = async () => {
     try {
@@ -38,12 +42,14 @@ export default function RewardsPage() {
       setProfileId(profile.id);
       setFamilyId(profile.family_id);
       setDisplayName(profile.display_name);
-      const [rewardList, totals] = await Promise.all([
+      const [rewardList, totals, redemptionList] = await Promise.all([
         listRewards(),
         getUserPointTotals(profile.id),
+        listRewardRedemptions(profile.id),
       ]);
       setRewards(rewardList);
       setBalancePoints(totals.balancePoints);
+      setRedemptions(redemptionList);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "読み込み失敗");
     } finally {
@@ -89,7 +95,9 @@ export default function RewardsPage() {
     }
     try {
       setMessage(null);
-      await redeemReward(reward, familyId, displayName);
+      const comment = comments[reward.id]?.trim() || null;
+      await redeemReward(reward, familyId, displayName, comment);
+      setComments((prev) => ({ ...prev, [reward.id]: "" }));
       setBalancePoints((prev) => prev - reward.cost_points);
       await load();
     } catch (error) {
@@ -201,7 +209,19 @@ export default function RewardsPage() {
                           {reward.cost_points} pt
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex flex-col items-end gap-2">
+                        <textarea
+                          className="w-40 rounded-lg border border-slate-300 px-2 py-1 text-xs"
+                          placeholder="交換コメント"
+                          value={comments[reward.id] ?? ""}
+                          onChange={(event) =>
+                            setComments((prev) => ({
+                              ...prev,
+                              [reward.id]: event.target.value,
+                            }))
+                          }
+                          rows={2}
+                        />
                         <button
                           className="rounded-lg bg-slate-900 px-3 py-2 text-sm text-white"
                           onClick={() => handleRedeem(reward)}
@@ -226,6 +246,33 @@ export default function RewardsPage() {
                         </button>
                       </div>
                     </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold">ご褒美の履歴</h2>
+          {redemptions.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
+              交換履歴がまだありません。
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {redemptions.map((item) => (
+                <div key={item.id} className="rounded-xl bg-white/90 p-4 shadow-sm border border-amber-100">
+                  <p className="font-medium">
+                    {item.rewards?.[0]?.name ?? "ご褒美"} / {item.points_spent} pt
+                  </p>
+                  <p className="text-sm text-slate-500">
+                    {new Date(item.redeemed_at).toLocaleString()}
+                  </p>
+                  {item.comment && (
+                    <p className="mt-1 text-sm text-slate-700">
+                      コメント: {item.comment}
+                    </p>
                   )}
                 </div>
               ))}

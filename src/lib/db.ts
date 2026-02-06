@@ -33,6 +33,14 @@ export type Reward = {
   cost_points: number;
 };
 
+export type RewardRedemption = {
+  id: string;
+  redeemed_at: string;
+  points_spent: number;
+  comment: string | null;
+  rewards: { name: string }[] | null;
+};
+
 export type Notification = {
   id: string;
   message: string;
@@ -438,7 +446,8 @@ export async function markNotificationsRead(ids: string[]) {
 export async function redeemReward(
   reward: Reward,
   familyId: string,
-  displayName: string
+  displayName: string,
+  comment: string | null
 ) {
   const user = await getSessionUser();
   if (!user) throw new Error("not authenticated");
@@ -450,6 +459,7 @@ export async function redeemReward(
       user_id: user.id,
       family_id: familyId,
       points_spent: reward.cost_points,
+      comment,
     });
   if (redeemError) throw redeemError;
 
@@ -469,4 +479,15 @@ export async function redeemReward(
     }))
   );
   if (notifyError) throw notifyError;
+}
+
+export async function listRewardRedemptions(userId: string, limit = 10) {
+  const { data, error } = await supabase
+    .from("reward_redemptions")
+    .select("id, redeemed_at, points_spent, comment, rewards(name)")
+    .eq("user_id", userId)
+    .order("redeemed_at", { ascending: false })
+    .limit(limit);
+  if (error) throw error;
+  return (data ?? []) as RewardRedemption[];
 }
