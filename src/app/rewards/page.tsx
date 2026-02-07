@@ -14,6 +14,7 @@ import {
   type Reward,
   type RewardRedemption,
 } from "@/lib/db";
+import BackButton from "@/components/BackButton";
 
 export default function RewardsPage() {
   const [profileId, setProfileId] = useState<string | null>(null);
@@ -109,13 +110,12 @@ export default function RewardsPage() {
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-center justify-between">
-          <div>
+          <BackButton />
+          <div className="text-center">
             <h1 className="text-xl font-bold">ご褒美管理</h1>
             <p className="text-sm text-slate-500">保有ポイント: {balancePoints} pt</p>
           </div>
-          <Link className="text-sm underline" href="/home">
-            ホームへ
-          </Link>
+          <div className="w-10" />
         </header>
 
         {message && <p className="text-sm text-slate-600">{message}</p>}

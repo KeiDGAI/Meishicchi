@@ -9,6 +9,7 @@ import {
   getUserPointTotals,
   getTasksByIds,
 } from "@/lib/db";
+import BackButton from "@/components/BackButton";
 
 type RecentCompletion = {
   id: string;
@@ -87,10 +88,9 @@ export default function FamilyPage() {
     <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-center justify-between">
+          <BackButton />
           <h1 className="text-xl font-bold">家族の状況</h1>
-          <Link className="text-sm underline" href="/home">
-            ホームへ
-          </Link>
+          <div className="w-10" />
         </header>
 
         {message && <p className="text-sm text-slate-600">{message}</p>}

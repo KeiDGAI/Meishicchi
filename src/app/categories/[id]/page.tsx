@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import {
   createTask,
@@ -14,6 +13,7 @@ import {
   updateTask,
   type Task,
 } from "@/lib/db";
+import BackButton from "@/components/BackButton";
 
 export default function CategoryPage() {
   const params = useParams();
@@ -162,13 +162,12 @@ export default function CategoryPage() {
       )}
       <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
         <header className="flex items-center justify-between">
+          <BackButton />
           <div className="flex items-center gap-2">
             <span className="text-2xl">{categoryIcon}</span>
             <h1 className="text-xl font-bold">{categoryName}</h1>
           </div>
-          <Link className="text-sm underline" href="/home">
-            ホームへ
-          </Link>
+          <div className="w-10" />
         </header>
         {message && <p className="text-sm text-slate-600">{message}</p>}
 
