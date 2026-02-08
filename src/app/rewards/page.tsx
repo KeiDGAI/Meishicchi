@@ -19,7 +19,6 @@ import BackButton from "@/components/BackButton";
 export default function RewardsPage() {
   const [profileId, setProfileId] = useState<string | null>(null);
   const [familyId, setFamilyId] = useState<string | null>(null);
-  const [displayName, setDisplayName] = useState<string | null>(null);
   const [balancePoints, setBalancePoints] = useState(0);
   const [rewards, setRewards] = useState<Reward[]>([]);
   const [name, setName] = useState("");
@@ -42,7 +41,6 @@ export default function RewardsPage() {
       }
       setProfileId(profile.id);
       setFamilyId(profile.family_id);
-      setDisplayName(profile.display_name);
       const [rewardList, totals, redemptionList] = await Promise.all([
         listRewards(),
         getUserPointTotals(profile.id),
@@ -89,7 +87,7 @@ export default function RewardsPage() {
   };
 
   const handleRedeem = async (reward: Reward) => {
-    if (!familyId || !profileId || !displayName) return;
+    if (!familyId || !profileId) return;
     if (balancePoints < reward.cost_points) {
       setMessage("ポイントが不足しています");
       return;
@@ -97,7 +95,7 @@ export default function RewardsPage() {
     try {
       setMessage(null);
       const comment = comments[reward.id]?.trim() || null;
-      await redeemReward(reward, familyId, displayName, comment);
+      await redeemReward(reward, familyId, comment);
       setComments((prev) => ({ ...prev, [reward.id]: "" }));
       setBalancePoints((prev) => prev - reward.cost_points);
       await load();

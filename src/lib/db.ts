@@ -5,6 +5,7 @@ export type UserProfile = {
   id: string;
   family_id: string | null;
   display_name: string;
+  current_points: number;
 };
 
 export type Family = {
@@ -60,7 +61,7 @@ export async function getOrCreateUserProfile() {
 
   const { data: existing, error: selectError } = await supabase
     .from("users")
-    .select("id, family_id, display_name")
+    .select("id, family_id, display_name, current_points")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -81,11 +82,21 @@ export async function getOrCreateUserProfile() {
       id: user.id,
       display_name: displayName,
     })
-    .select("id, family_id, display_name")
+    .select("id, family_id, display_name, current_points")
     .single();
 
   if (insertError) throw insertError;
   return inserted as UserProfile;
+}
+
+export async function getUserCurrentPoints(userId: string) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("current_points")
+    .eq("id", userId)
+    .single();
+  if (error) throw error;
+  return data.current_points ?? 0;
 }
 
 export async function updateUserFamily(userId: string, familyId: string) {
@@ -301,16 +312,13 @@ export async function deleteTask(taskId: string) {
   if (error) throw error;
 }
 
-export async function recordCompletion(taskId: string, points: number, familyId: string) {
-  const user = await getSessionUser();
-  if (!user) throw new Error("not authenticated");
-  const { error } = await supabase.from("chore_completions").insert({
-    task_id: taskId,
-    user_id: user.id,
-    family_id: familyId,
-    points,
+export async function recordCompletion(taskId: string, familyId: string) {
+  const { data, error } = await supabase.rpc("record_chore_completion", {
+    task_id_input: taskId,
+    family_id_input: familyId,
   });
   if (error) throw error;
+  return data as number;
 }
 
 export async function listRecentCompletions(userId: string, limit = 5) {
@@ -340,11 +348,11 @@ export async function getTasksByIds(taskIds: string[]) {
 }
 
 export async function deleteCompletion(completionId: string) {
-  const { error } = await supabase
-    .from("chore_completions")
-    .delete()
-    .eq("id", completionId);
+  const { data, error } = await supabase.rpc("delete_chore_completion", {
+    completion_id_input: completionId,
+  });
   if (error) throw error;
+  return data as number;
 }
 
 export async function listTaskLastCompletions(userId: string, taskIds: string[]) {
@@ -411,13 +419,12 @@ export async function getUserPointTotals(userId: string) {
     .eq("user_id", userId);
 
   if (completionError) throw completionError;
-
-  const { data: redemptions, error: redemptionError } = await supabase
-    .from("reward_redemptions")
-    .select("points_spent")
-    .eq("user_id", userId);
-
-  if (redemptionError) throw redemptionError;
+  const { data: userRow, error: userError } = await supabase
+    .from("users")
+    .select("current_points")
+    .eq("id", userId)
+    .single();
+  if (userError) throw userError;
 
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
@@ -427,18 +434,9 @@ export async function getUserPointTotals(userId: string) {
     return completedAt >= todayStart ? sum + (row.points ?? 0) : sum;
   }, 0);
 
-  const totalEarned = (completions ?? []).reduce(
-    (sum, row) => sum + (row.points ?? 0),
-    0
-  );
-  const totalSpent = (redemptions ?? []).reduce(
-    (sum, row) => sum + (row.points_spent ?? 0),
-    0
-  );
-
   return {
     todayPoints,
-    balancePoints: totalEarned - totalSpent,
+    balancePoints: userRow.current_points ?? 0,
   };
 }
 
@@ -465,39 +463,14 @@ export async function markNotificationsRead(ids: string[]) {
 export async function redeemReward(
   reward: Reward,
   familyId: string,
-  displayName: string,
   comment: string | null
 ) {
-  const user = await getSessionUser();
-  if (!user) throw new Error("not authenticated");
-
-  const { error: redeemError } = await supabase
-    .from("reward_redemptions")
-    .insert({
-      reward_id: reward.id,
-      user_id: user.id,
-      family_id: familyId,
-      points_spent: reward.cost_points,
-      comment,
-    });
-  if (redeemError) throw redeemError;
-
-  const { data: familyUsers, error: familyUsersError } = await supabase
-    .from("users")
-    .select("id")
-    .eq("family_id", familyId);
-  if (familyUsersError) throw familyUsersError;
-
-  const message = `${displayName}が${reward.name}をご褒美を交換しました`;
-
-  const { error: notifyError } = await supabase.from("notifications").insert(
-    (familyUsers ?? []).map((member) => ({
-      family_id: familyId,
-      user_id: member.id,
-      message,
-    }))
-  );
-  if (notifyError) throw notifyError;
+  const { error } = await supabase.rpc("redeem_reward", {
+    reward_id_input: reward.id,
+    family_id_input: familyId,
+    comment_input: comment,
+  });
+  if (error) throw error;
 }
 
 export async function listRewardRedemptions(userId: string, limit = 10) {

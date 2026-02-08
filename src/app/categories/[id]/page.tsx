@@ -96,7 +96,7 @@ export default function CategoryPage() {
         setMessage("家族参加が必要です");
         return;
       }
-      await recordCompletion(task.id, task.points, familyId);
+      await recordCompletion(task.id, familyId);
       setToast(`${task.name} を登録しました`);
       setTimeout(() => setToast(null), 1600);
       await load();

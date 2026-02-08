@@ -40,6 +40,7 @@ create table if not exists public.users (
   id uuid primary key references auth.users(id) on delete cascade,
   family_id uuid references public.families(id) on delete set null,
   display_name text not null,
+  current_points integer not null default 0,
   created_at timestamptz not null default now()
 );
 
@@ -104,6 +105,10 @@ create index if not exists idx_completions_family on public.chore_completions (f
 create index if not exists idx_rewards_family on public.rewards (family_id);
 create index if not exists idx_redemptions_family on public.reward_redemptions (family_id);
 create index if not exists idx_notifications_user on public.notifications (user_id, is_read);
+create index if not exists idx_completions_user_completed
+  on public.chore_completions (user_id, completed_at desc);
+create index if not exists idx_redemptions_user_redeemed
+  on public.reward_redemptions (user_id, redeemed_at desc);
 
 -- RLS
 alter table public.families enable row level security;
@@ -199,6 +204,161 @@ with check (family_id = public.current_family_id());
 create policy "notifications_update_self"
 on public.notifications for update
 using (user_id = auth.uid());
+
+-- RPC: record chore completion and update points atomically
+create or replace function public.record_chore_completion(
+  task_id_input uuid,
+  family_id_input uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, auth
+set row_security = off
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_points integer;
+begin
+  if v_user_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if public.current_family_id() is distinct from family_id_input then
+    raise exception 'invalid family';
+  end if;
+
+  select points into v_points
+  from public.chore_tasks
+  where id = task_id_input
+    and family_id = family_id_input
+    and is_active = true;
+
+  if v_points is null then
+    raise exception 'task not found';
+  end if;
+
+  insert into public.chore_completions (family_id, task_id, user_id, points)
+  values (family_id_input, task_id_input, v_user_id, v_points);
+
+  update public.users
+  set current_points = current_points + v_points
+  where id = v_user_id;
+
+  return v_points;
+end;
+$$;
+
+revoke all on function public.record_chore_completion(uuid, uuid) from public;
+grant execute on function public.record_chore_completion(uuid, uuid) to authenticated;
+
+-- RPC: delete completion and roll back points
+create or replace function public.delete_chore_completion(
+  completion_id_input uuid
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public, auth
+set row_security = off
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_points integer;
+begin
+  if v_user_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  select points into v_points
+  from public.chore_completions
+  where id = completion_id_input
+    and user_id = v_user_id;
+
+  if v_points is null then
+    raise exception 'completion not found';
+  end if;
+
+  delete from public.chore_completions
+  where id = completion_id_input
+    and user_id = v_user_id;
+
+  update public.users
+  set current_points = current_points - v_points
+  where id = v_user_id;
+
+  return v_points;
+end;
+$$;
+
+revoke all on function public.delete_chore_completion(uuid) from public;
+grant execute on function public.delete_chore_completion(uuid) to authenticated;
+
+-- RPC: redeem reward and update points + notify
+create or replace function public.redeem_reward(
+  reward_id_input uuid,
+  family_id_input uuid,
+  comment_input text
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, auth
+set row_security = off
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_cost integer;
+  v_reward_name text;
+  v_display_name text;
+begin
+  if v_user_id is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if public.current_family_id() is distinct from family_id_input then
+    raise exception 'invalid family';
+  end if;
+
+  select cost_points, name into v_cost, v_reward_name
+  from public.rewards
+  where id = reward_id_input
+    and family_id = family_id_input;
+
+  if v_cost is null then
+    raise exception 'reward not found';
+  end if;
+
+  if (select current_points from public.users where id = v_user_id) < v_cost then
+    raise exception 'insufficient points';
+  end if;
+
+  insert into public.reward_redemptions (
+    family_id, reward_id, user_id, points_spent, comment
+  ) values (
+    family_id_input, reward_id_input, v_user_id, v_cost, comment_input
+  );
+
+  update public.users
+  set current_points = current_points - v_cost
+  where id = v_user_id;
+
+  select display_name into v_display_name
+  from public.users
+  where id = v_user_id;
+
+  insert into public.notifications (family_id, user_id, message)
+  select
+    family_id_input,
+    u.id,
+    coalesce(v_display_name, '誰か') || 'が' || v_reward_name || 'をご褒美を交換しました'
+  from public.users u
+  where u.family_id = family_id_input;
+end;
+$$;
+
+revoke all on function public.redeem_reward(uuid, uuid, text) from public;
+grant execute on function public.redeem_reward(uuid, uuid, text) to authenticated;
 
 -- Seed data (run after creating a family)
 -- Replace :family_id with the family uuid.
