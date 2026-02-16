@@ -42,6 +42,22 @@ export type RewardRedemption = {
   rewards: { name: string }[] | null;
 };
 
+export type RecentCompletion = {
+  id: string;
+  points: number;
+  completed_at: string;
+  task_id: string;
+  task_name?: string;
+};
+
+export type FamilyMemberSummary = {
+  user_id: string;
+  display_name: string;
+  today_points: number;
+  balance_points: number;
+  recent: RecentCompletion[];
+};
+
 export type Notification = {
   id: string;
   message: string;
@@ -160,6 +176,30 @@ export async function listFamilyMembers(familyId: string) {
     .order("created_at", { ascending: true });
   if (error) throw error;
   return (data ?? []) as { id: string; display_name: string }[];
+}
+
+export async function getFamilyMemberSummaries(
+  familyId: string,
+  recentLimit = 3
+) {
+  const { data, error } = await supabase.rpc("get_family_member_summaries", {
+    family_id_input: familyId,
+    recent_limit_input: recentLimit,
+  });
+  if (error) throw error;
+  return (data ?? []).map((row: any) => ({
+    user_id: row.user_id as string,
+    display_name: row.display_name as string,
+    today_points: Number(row.today_points ?? 0),
+    balance_points: Number(row.balance_points ?? 0),
+    recent: ((row.recent ?? []) as RecentCompletion[]).map((item) => ({
+      id: item.id,
+      points: Number(item.points),
+      completed_at: item.completed_at,
+      task_id: item.task_id,
+      task_name: item.task_name,
+    })),
+  })) as FamilyMemberSummary[];
 }
 
 export async function getCategory(categoryId: string) {
@@ -321,20 +361,23 @@ export async function recordCompletion(taskId: string, familyId: string) {
   return data as number;
 }
 
-export async function listRecentCompletions(userId: string, limit = 5) {
-  const { data, error } = await supabase
+export async function listRecentCompletions(
+  userId: string,
+  limit = 5,
+  before?: string
+) {
+  let query = supabase
     .from("chore_completions")
     .select("id, points, completed_at, task_id")
     .eq("user_id", userId)
     .order("completed_at", { ascending: false })
     .limit(limit);
+  if (before) {
+    query = query.lt("completed_at", before);
+  }
+  const { data, error } = await query;
   if (error) throw error;
-  return (data ?? []) as {
-    id: string;
-    points: number;
-    completed_at: string;
-    task_id: string;
-  }[];
+  return (data ?? []) as RecentCompletion[];
 }
 
 export async function getTasksByIds(taskIds: string[]) {
@@ -413,30 +456,16 @@ export async function updateReward(rewardId: string, name: string, costPoints: n
 }
 
 export async function getUserPointTotals(userId: string) {
-  const { data: completions, error: completionError } = await supabase
-    .from("chore_completions")
-    .select("points, completed_at")
-    .eq("user_id", userId);
-
-  if (completionError) throw completionError;
-  const { data: userRow, error: userError } = await supabase
-    .from("users")
-    .select("current_points")
-    .eq("id", userId)
-    .single();
-  if (userError) throw userError;
-
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-
-  const todayPoints = (completions ?? []).reduce((sum, row) => {
-    const completedAt = new Date(row.completed_at);
-    return completedAt >= todayStart ? sum + (row.points ?? 0) : sum;
-  }, 0);
-
+  const { data, error } = await supabase.rpc("get_user_point_totals", {
+    user_id_input: userId,
+  });
+  if (error) throw error;
+  const row = (data ?? [])[0] as
+    | { today_points: number; balance_points: number }
+    | undefined;
   return {
-    todayPoints,
-    balancePoints: userRow.current_points ?? 0,
+    todayPoints: row?.today_points ?? 0,
+    balancePoints: row?.balance_points ?? 0,
   };
 }
 
@@ -473,13 +502,21 @@ export async function redeemReward(
   if (error) throw error;
 }
 
-export async function listRewardRedemptions(userId: string, limit = 10) {
-  const { data, error } = await supabase
+export async function listRewardRedemptions(
+  userId: string,
+  limit = 10,
+  before?: string
+) {
+  let query = supabase
     .from("reward_redemptions")
     .select("id, redeemed_at, points_spent, comment, rewards(name)")
     .eq("user_id", userId)
     .order("redeemed_at", { ascending: false })
     .limit(limit);
+  if (before) {
+    query = query.lt("redeemed_at", before);
+  }
+  const { data, error } = await query;
   if (error) throw error;
   return (data ?? []) as RewardRedemption[];
 }

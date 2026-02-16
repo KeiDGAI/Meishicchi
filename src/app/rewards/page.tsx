@@ -30,6 +30,8 @@ export default function RewardsPage() {
   const [editCost, setEditCost] = useState(0);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [redemptions, setRedemptions] = useState<RewardRedemption[]>([]);
+  const [redemptionCursor, setRedemptionCursor] = useState<string | null>(null);
+  const [hasMoreRedemptions, setHasMoreRedemptions] = useState(false);
 
   const load = async () => {
     try {
@@ -44,11 +46,17 @@ export default function RewardsPage() {
       const [rewardList, totals, redemptionList] = await Promise.all([
         listRewards(),
         getUserPointTotals(profile.id),
-        listRewardRedemptions(profile.id),
+        listRewardRedemptions(profile.id, 10),
       ]);
       setRewards(rewardList);
       setBalancePoints(totals.balancePoints);
       setRedemptions(redemptionList);
+      setHasMoreRedemptions(redemptionList.length === 10);
+      setRedemptionCursor(
+        redemptionList.length > 0
+          ? redemptionList[redemptionList.length - 1].redeemed_at
+          : null
+      );
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "読み込み失敗");
     } finally {
@@ -101,6 +109,20 @@ export default function RewardsPage() {
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "交換に失敗");
+    }
+  };
+
+  const handleLoadMoreRedemptions = async () => {
+    if (!profileId || !redemptionCursor) return;
+    try {
+      const next = await listRewardRedemptions(profileId, 10, redemptionCursor);
+      setRedemptions((prev) => [...prev, ...next]);
+      setHasMoreRedemptions(next.length === 10);
+      setRedemptionCursor(
+        next.length > 0 ? next[next.length - 1].redeemed_at : null
+      );
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "履歴取得に失敗");
     }
   };
 
@@ -274,6 +296,14 @@ export default function RewardsPage() {
                   )}
                 </div>
               ))}
+              {hasMoreRedemptions && (
+                <button
+                  className="w-full rounded-lg border border-slate-300 bg-white/80 px-4 py-2 text-sm btn-ripple btn-press"
+                  onClick={handleLoadMoreRedemptions}
+                >
+                  もっと見る
+                </button>
+              )}
             </div>
           )}
         </section>

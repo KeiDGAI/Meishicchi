@@ -107,8 +107,12 @@ create index if not exists idx_redemptions_family on public.reward_redemptions (
 create index if not exists idx_notifications_user on public.notifications (user_id, is_read);
 create index if not exists idx_completions_user_completed
   on public.chore_completions (user_id, completed_at desc);
+create index if not exists idx_completions_family_completed
+  on public.chore_completions (family_id, completed_at desc);
 create index if not exists idx_redemptions_user_redeemed
   on public.reward_redemptions (user_id, redeemed_at desc);
+create index if not exists idx_redemptions_family_redeemed
+  on public.reward_redemptions (family_id, redeemed_at desc);
 
 -- RLS
 alter table public.families enable row level security;
@@ -359,6 +363,123 @@ $$;
 
 revoke all on function public.redeem_reward(uuid, uuid, text) from public;
 grant execute on function public.redeem_reward(uuid, uuid, text) to authenticated;
+
+-- RPC: aggregate point totals for a user (today + current balance)
+create or replace function public.get_user_point_totals(
+  user_id_input uuid
+)
+returns table(today_points integer, balance_points integer)
+language plpgsql
+security definer
+set search_path = public, auth
+set row_security = off
+as $$
+declare
+  v_family uuid := public.current_family_id();
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if v_family is null then
+    raise exception 'family not set';
+  end if;
+
+  if not exists (
+    select 1 from public.users u
+    where u.id = user_id_input and u.family_id = v_family
+  ) then
+    raise exception 'invalid target user';
+  end if;
+
+  return query
+  select
+    coalesce(sum(c.points), 0)::integer as today_points,
+    coalesce(u.current_points, 0)::integer as balance_points
+  from public.users u
+  left join public.chore_completions c
+    on c.user_id = u.id
+   and c.completed_at >= date_trunc('day', now())
+  where u.id = user_id_input
+  group by u.current_points;
+end;
+$$;
+
+revoke all on function public.get_user_point_totals(uuid) from public;
+grant execute on function public.get_user_point_totals(uuid) to authenticated;
+
+-- RPC: fetch family members with points and recent chores in one call
+create or replace function public.get_family_member_summaries(
+  family_id_input uuid,
+  recent_limit_input integer default 3
+)
+returns table(
+  user_id uuid,
+  display_name text,
+  today_points integer,
+  balance_points integer,
+  recent jsonb
+)
+language plpgsql
+security definer
+set search_path = public, auth
+set row_security = off
+as $$
+begin
+  if auth.uid() is null then
+    raise exception 'not authenticated';
+  end if;
+
+  if public.current_family_id() is distinct from family_id_input then
+    raise exception 'invalid family';
+  end if;
+
+  return query
+  select
+    u.id as user_id,
+    u.display_name,
+    coalesce(tp.today_sum, 0)::integer as today_points,
+    u.current_points::integer as balance_points,
+    coalesce(rc.recent_items, '[]'::jsonb) as recent
+  from public.users u
+  left join lateral (
+    select sum(c.points) as today_sum
+    from public.chore_completions c
+    where c.user_id = u.id
+      and c.completed_at >= date_trunc('day', now())
+  ) tp on true
+  left join lateral (
+    select jsonb_agg(
+      jsonb_build_object(
+        'id', x.id,
+        'points', x.points,
+        'completed_at', x.completed_at,
+        'task_id', x.task_id,
+        'task_name', x.task_name
+      )
+      order by x.completed_at desc
+    ) as recent_items
+    from (
+      select
+        c.id,
+        c.points,
+        c.completed_at,
+        c.task_id,
+        t.name as task_name
+      from public.chore_completions c
+      join public.chore_tasks t on t.id = c.task_id
+      where c.user_id = u.id
+      order by c.completed_at desc
+      limit greatest(coalesce(recent_limit_input, 3), 1)
+    ) x
+  ) rc on true
+  where u.family_id = family_id_input
+  order by u.created_at asc;
+end;
+$$;
+
+revoke all on function public.get_family_member_summaries(uuid, integer) from public;
+grant execute on function public.get_family_member_summaries(uuid, integer) to authenticated;
 
 -- Seed data (run after creating a family)
 -- Replace :family_id with the family uuid.
