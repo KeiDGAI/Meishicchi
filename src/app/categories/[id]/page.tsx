@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   createTask,
   deleteTask,
@@ -16,6 +17,7 @@ import {
 import BackButton from "@/components/BackButton";
 
 export default function CategoryPage() {
+  const queryClient = useQueryClient();
   const params = useParams();
   const categoryId = params?.id as string;
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -99,6 +101,8 @@ export default function CategoryPage() {
       await recordCompletion(task.id, familyId);
       setToast(`${task.name} を登録しました`);
       setTimeout(() => setToast(null), 1600);
+      await queryClient.invalidateQueries({ queryKey: ["home-data"] });
+      await queryClient.invalidateQueries({ queryKey: ["family-summaries"] });
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "登録に失敗");

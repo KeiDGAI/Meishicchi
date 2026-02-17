@@ -116,6 +116,8 @@ export default function HomePage() {
     queryKey: ["home-data"],
     queryFn: loadHomeData,
     staleTime: 60 * 1000,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
   });
 
   useEffect(() => {
