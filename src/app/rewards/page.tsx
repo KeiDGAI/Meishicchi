@@ -35,6 +35,7 @@ export default function RewardsPage() {
 
   const load = async () => {
     try {
+      const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
       const profile = await getOrCreateUserProfile();
       if (!profile?.family_id) {
         setMessage("家族参加が必要です");
@@ -45,7 +46,7 @@ export default function RewardsPage() {
       setFamilyId(profile.family_id);
       const [rewardList, totals, redemptionList] = await Promise.all([
         listRewards(),
-        getUserPointTotals(profile.id),
+        getUserPointTotals(profile.id, timeZone),
         listRewardRedemptions(profile.id, 10),
       ]);
       setRewards(rewardList);

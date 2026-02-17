@@ -365,8 +365,10 @@ revoke all on function public.redeem_reward(uuid, uuid, text) from public;
 grant execute on function public.redeem_reward(uuid, uuid, text) to authenticated;
 
 -- RPC: aggregate point totals for a user (today + current balance)
+drop function if exists public.get_user_point_totals(uuid);
 create or replace function public.get_user_point_totals(
-  user_id_input uuid
+  user_id_input uuid,
+  timezone_input text default 'UTC'
 )
 returns table(today_points integer, balance_points integer)
 language plpgsql
@@ -399,19 +401,23 @@ begin
   from public.users u
   left join public.chore_completions c
     on c.user_id = u.id
-   and c.completed_at >= date_trunc('day', now())
+   and c.completed_at >= (
+     date_trunc('day', now() at time zone timezone_input) at time zone timezone_input
+   )
   where u.id = user_id_input
   group by u.current_points;
 end;
 $$;
 
-revoke all on function public.get_user_point_totals(uuid) from public;
-grant execute on function public.get_user_point_totals(uuid) to authenticated;
+revoke all on function public.get_user_point_totals(uuid, text) from public;
+grant execute on function public.get_user_point_totals(uuid, text) to authenticated;
 
 -- RPC: fetch family members with points and recent chores in one call
+drop function if exists public.get_family_member_summaries(uuid, integer);
 create or replace function public.get_family_member_summaries(
   family_id_input uuid,
-  recent_limit_input integer default 3
+  recent_limit_input integer default 3,
+  timezone_input text default 'UTC'
 )
 returns table(
   user_id uuid,
@@ -446,7 +452,9 @@ begin
     select sum(c.points) as today_sum
     from public.chore_completions c
     where c.user_id = u.id
-      and c.completed_at >= date_trunc('day', now())
+      and c.completed_at >= (
+        date_trunc('day', now() at time zone timezone_input) at time zone timezone_input
+      )
   ) tp on true
   left join lateral (
     select jsonb_agg(
@@ -478,8 +486,8 @@ begin
 end;
 $$;
 
-revoke all on function public.get_family_member_summaries(uuid, integer) from public;
-grant execute on function public.get_family_member_summaries(uuid, integer) to authenticated;
+revoke all on function public.get_family_member_summaries(uuid, integer, text) from public;
+grant execute on function public.get_family_member_summaries(uuid, integer, text) to authenticated;
 
 -- Seed data (run after creating a family)
 -- Replace :family_id with the family uuid.

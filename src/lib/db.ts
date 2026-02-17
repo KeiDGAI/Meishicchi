@@ -180,11 +180,13 @@ export async function listFamilyMembers(familyId: string) {
 
 export async function getFamilyMemberSummaries(
   familyId: string,
-  recentLimit = 3
+  recentLimit = 3,
+  timeZone = "UTC"
 ) {
   const { data, error } = await supabase.rpc("get_family_member_summaries", {
     family_id_input: familyId,
     recent_limit_input: recentLimit,
+    timezone_input: timeZone,
   });
   if (error) throw error;
   return (data ?? []).map((row: any) => ({
@@ -455,9 +457,10 @@ export async function updateReward(rewardId: string, name: string, costPoints: n
   return data as Reward;
 }
 
-export async function getUserPointTotals(userId: string) {
+export async function getUserPointTotals(userId: string, timeZone = "UTC") {
   const { data, error } = await supabase.rpc("get_user_point_totals", {
     user_id_input: userId,
+    timezone_input: timeZone,
   });
   if (error) throw error;
   const row = (data ?? [])[0] as

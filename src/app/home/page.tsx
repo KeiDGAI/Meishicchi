@@ -46,6 +46,7 @@ const iconFallbackMap: Record<string, string> = {
 };
 
 async function loadHomeData(): Promise<HomeData> {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const userProfile = await getOrCreateUserProfile();
   if (!userProfile) {
     return {
@@ -80,7 +81,7 @@ async function loadHomeData(): Promise<HomeData> {
     getFamily(userProfile.family_id),
     listCategories(),
     listRecentCompletions(userProfile.id, 5),
-    getUserPointTotals(userProfile.id),
+    getUserPointTotals(userProfile.id, timeZone),
     listUnreadNotifications(userProfile.id),
   ]);
 

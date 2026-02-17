@@ -5,11 +5,12 @@ import { getFamilyMemberSummaries, getOrCreateUserProfile } from "@/lib/db";
 import BackButton from "@/components/BackButton";
 
 async function loadFamilySummaries() {
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
   const profile = await getOrCreateUserProfile();
   if (!profile?.family_id) {
     throw new Error("家族参加が必要です");
   }
-  return getFamilyMemberSummaries(profile.family_id, 3);
+  return getFamilyMemberSummaries(profile.family_id, 3, timeZone);
 }
 
 export default function FamilyPage() {
