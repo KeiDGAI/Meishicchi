@@ -1,420 +1,282 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  createFamily,
-  deleteCompletion,
-  getFamily,
-  getOrCreateUserProfile,
-  getTasksByIds,
-  listCategories,
-  listFamilies,
-  listRecentCompletions,
-  listUnreadNotifications,
-  markNotificationsRead,
-  seedInitialData,
-  updateUserFamily,
-  getUserPointTotals,
-  type Category,
-  type Notification,
-  type RecentCompletion,
-  type UserProfile,
-} from "@/lib/db";
 import { supabase } from "@/lib/supabaseClient";
 
-type HomeData = {
-  authenticated: boolean;
-  profile: UserProfile | null;
-  familyInvite: string | null;
-  families: { id: string; name: string | null; invite_code: string }[];
-  categories: Category[];
-  recent: (RecentCompletion & { task_name?: string })[];
-  todayPoints: number;
-  balancePoints: number;
-  notifications: Notification[];
+type Contact = {
+  id: string;
+  name: string;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  title: string | null;
+  memo: string | null;
+  created_at: string;
+  updated_at: string;
 };
 
-const iconFallbackMap: Record<string, string> = {
-  料理: "🍳",
-  洗濯: "🧺",
-  掃除: "🧹",
-  その他家事: "🧴",
-  子守: "🍼",
+type PetState = {
+  lineage: string | null;
+  stage: number;
+  evolutionKey: string | null;
+  cardCount: number;
+  nextEvolutionAt: number | null;
 };
 
-async function loadHomeData(): Promise<HomeData> {
-  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  const userProfile = await getOrCreateUserProfile();
-  if (!userProfile) {
-    return {
-      authenticated: false,
-      profile: null,
-      familyInvite: null,
-      families: [],
-      categories: [],
-      recent: [],
-      todayPoints: 0,
-      balancePoints: 0,
-      notifications: [],
-    };
-  }
+type ContactForm = {
+  name: string;
+  company: string;
+  email: string;
+  phone: string;
+  title: string;
+  memo: string;
+};
 
-  if (!userProfile.family_id) {
-    const families = await listFamilies();
-    return {
-      authenticated: true,
-      profile: userProfile,
-      familyInvite: null,
-      families,
-      categories: [],
-      recent: [],
-      todayPoints: 0,
-      balancePoints: 0,
-      notifications: [],
-    };
-  }
-
-  const [family, categories, recentRaw, totals, notifications] = await Promise.all([
-    getFamily(userProfile.family_id),
-    listCategories(),
-    listRecentCompletions(userProfile.id, 5),
-    getUserPointTotals(userProfile.id, timeZone),
-    listUnreadNotifications(userProfile.id),
-  ]);
-
-  const tasks = await getTasksByIds(recentRaw.map((item) => item.task_id));
-  const taskMap = new Map(tasks.map((task) => [task.id, task.name]));
-
-  return {
-    authenticated: true,
-    profile: userProfile,
-    familyInvite: family.invite_code,
-    families: [],
-    categories,
-    recent: recentRaw.map((item) => ({
-      ...item,
-      task_name: taskMap.get(item.task_id),
-    })),
-    todayPoints: totals.todayPoints,
-    balancePoints: totals.balancePoints,
-    notifications,
-  };
-}
+const defaultForm: ContactForm = {
+  name: "",
+  company: "",
+  email: "",
+  phone: "",
+  title: "",
+  memo: "",
+};
 
 export default function HomePage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
-  const [familyName, setFamilyName] = useState("");
-  const [actionError, setActionError] = useState<string | null>(null);
-  const [seeding, setSeeding] = useState(false);
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-
-  const homeQuery = useQuery({
-    queryKey: ["home-data"],
-    queryFn: loadHomeData,
-    staleTime: 60 * 1000,
-    refetchOnMount: "always",
-    refetchOnReconnect: true,
-  });
+  const [token, setToken] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState("ユーザー");
+  const [form, setForm] = useState<ContactForm>(defaultForm);
+  const [search, setSearch] = useState("");
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [pet, setPet] = useState<PetState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    if (homeQuery.data && !homeQuery.data.authenticated) {
-      router.push("/login");
-    }
-  }, [homeQuery.data, router]);
+    const bootstrap = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-  useEffect(() => {
-    const markRead = async () => {
-      if (!homeQuery.data?.profile?.id) return;
-      if (homeQuery.data.notifications.length === 0) return;
-      try {
-        await markNotificationsRead(homeQuery.data.notifications.map((n) => n.id));
-      } catch {
+      if (!session) {
+        router.push("/login");
         return;
       }
-    };
-    markRead();
-  }, [homeQuery.data]);
 
-  const handleLogout = async () => {
+      setToken(session.access_token);
+      setProfileName(
+        (session.user.user_metadata?.display_name as string | undefined) ??
+          session.user.email ??
+          "ユーザー"
+      );
+    };
+
+    bootstrap();
+  }, [router]);
+
+  const authHeaders = useMemo(() => {
+    if (!token) return null;
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    };
+  }, [token]);
+
+  const refreshData = async (currentHeaders: Record<string, string>) => {
+    const [contactsRes, petRes] = await Promise.all([
+      fetch("/api/contacts", {
+        headers: currentHeaders,
+      }),
+      fetch("/api/pet", {
+        headers: currentHeaders,
+      }),
+    ]);
+
+    if (!contactsRes.ok || !petRes.ok) {
+      throw new Error("データ取得に失敗しました");
+    }
+
+    const contactsJson = await contactsRes.json();
+    const petJson = await petRes.json();
+
+    setContacts((contactsJson.contacts ?? []) as Contact[]);
+    setPet((petJson ?? null) as PetState | null);
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      if (!authHeaders) return;
+      setLoading(true);
+      try {
+        await refreshData(authHeaders);
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : "読み込み失敗");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    run();
+  }, [authHeaders]);
+
+  const onCreateContact = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!authHeaders) return;
+
+    if (!form.name.trim()) {
+      setMessage("名前は必須です");
+      return;
+    }
+
+    setSaving(true);
+    setMessage(null);
+
+    try {
+      const response = await fetch("/api/contacts", {
+        method: "POST",
+        headers: authHeaders,
+        body: JSON.stringify(form),
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({ error: "登録失敗" }));
+        throw new Error(body.error ?? "登録失敗");
+      }
+
+      setForm(defaultForm);
+      await refreshData(authHeaders);
+      setMessage("名刺を登録しました。キャラが成長しました。");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "登録失敗");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const filteredContacts = contacts.filter((contact) => {
+    const query = search.trim().toLowerCase();
+    if (!query) return true;
+
+    return [contact.name, contact.company, contact.email]
+      .filter(Boolean)
+      .some((value) => value!.toLowerCase().includes(query));
+  });
+
+  const logout = async () => {
     await supabase.auth.signOut();
     router.push("/login");
   };
 
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["home-data"] });
-  };
-
-  const handleCreateFamily = async () => {
-    const profile = homeQuery.data?.profile;
-    if (!profile) return;
-    setActionError(null);
-    try {
-      const family = await createFamily(familyName || null);
-      await updateUserFamily(profile.id, family.id);
-      setFamilyName("");
-      await refresh();
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "作成に失敗");
-    }
-  };
-
-  const handleJoinFamily = async (familyId: string) => {
-    const profile = homeQuery.data?.profile;
-    if (!profile) return;
-    setActionError(null);
-    try {
-      await updateUserFamily(profile.id, familyId);
-      await refresh();
-    } catch (error) {
-      setActionError(error instanceof Error ? error.message : "参加に失敗");
-    }
-  };
-
-  if (homeQuery.isLoading) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
-        <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-6">
-          <p className="text-slate-600">読み込み中...</p>
-        </div>
-      </main>
-    );
-  }
-
-  if (homeQuery.error) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
-        <div className="mx-auto flex min-h-screen w-full max-w-xl items-center justify-center px-6">
-          <p className="text-slate-600">
-            {homeQuery.error instanceof Error
-              ? homeQuery.error.message
-              : "読み込み失敗"}
-          </p>
-        </div>
-      </main>
-    );
-  }
-
-  const data = homeQuery.data;
-  if (!data?.profile) return null;
-
-  if (!data.profile.family_id) {
-    return (
-      <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
-        <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-6 px-6 py-8">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-sm text-slate-500">ようこそ</p>
-              <h1 className="text-2xl font-bold">家族を作成または参加</h1>
-            </div>
-            <button className="text-sm underline btn-press" onClick={handleLogout}>
-              ログアウト
-            </button>
-          </div>
-          {actionError && (
-            <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
-              <p>{actionError}</p>
-            </div>
-          )}
-          <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-lg font-semibold">家族を作成</h2>
-            <input
-              className="w-full rounded-lg border border-slate-300 px-3 py-2"
-              placeholder="家族名（任意）"
-              value={familyName}
-              onChange={(event) => setFamilyName(event.target.value)}
-            />
-            <button
-              className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white btn-ripple btn-press"
-              onClick={handleCreateFamily}
-            >
-              作成する
-            </button>
-          </section>
-          <section className="rounded-2xl bg-white p-5 shadow-sm space-y-3">
-            <h2 className="text-lg font-semibold">家族一覧から参加</h2>
-            {data.families.length === 0 ? (
-              <p className="text-sm text-slate-500">まだ家族が作成されていません。</p>
-            ) : (
-              <div className="space-y-2">
-                {data.families.map((family) => (
-                  <div
-                    key={family.id}
-                    className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2"
-                  >
-                    <span className="text-sm">{family.name ?? "家族"}</span>
-                    <button
-                      className="rounded-lg border border-slate-300 px-3 py-1 text-sm btn-ripple btn-press"
-                      onClick={() => handleJoinFamily(family.id)}
-                    >
-                      参加
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </section>
-        </div>
-      </main>
-    );
-  }
-
   return (
-    <main className="min-h-screen bg-gradient-to-b from-amber-50 via-rose-50 to-sky-50 text-slate-900">
-      <div className="mx-auto w-full max-w-xl space-y-6 px-6 py-8">
-        <header className="flex items-start justify-between">
-          <div className="space-y-2">
-            <p className="text-sm text-slate-500">おかえりなさい</p>
-            <h1 className="text-2xl font-bold">{data.profile.display_name}</h1>
-            {data.familyInvite && (
-              <p className="text-xs text-slate-500">
-                招待コード: <span className="font-semibold">{data.familyInvite}</span>
-              </p>
-            )}
+    <main className="min-h-screen bg-gradient-to-b from-orange-50 via-emerald-50 to-cyan-50 text-slate-900">
+      <div className="mx-auto w-full max-w-3xl space-y-6 px-6 py-8">
+        <header className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-sm text-slate-600">名刺っちダッシュボード</p>
+            <h1 className="text-2xl font-bold">{profileName}</h1>
           </div>
-          <button className="text-sm underline btn-press" onClick={handleLogout}>
+          <button className="text-sm underline btn-press" onClick={logout}>
             ログアウト
           </button>
         </header>
 
-        {data.notifications.length > 0 && (
-          <section className="rounded-2xl bg-amber-50 p-4 text-amber-900">
-            <p className="text-sm font-semibold">未読通知</p>
-            <ul className="mt-2 space-y-2 text-sm">
-              {data.notifications.map((item) => (
-                <li key={item.id}>{item.message}</li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        <section className="rounded-2xl bg-white/90 p-5 shadow-sm border border-amber-100">
-          <p className="text-sm text-slate-500">今日のポイント</p>
-          <p className="text-3xl font-bold">{data.todayPoints} pt</p>
-        </section>
-
-        <section className="rounded-2xl bg-white/90 p-5 shadow-sm border border-sky-100">
-          <p className="text-sm text-slate-500">累計保有ポイント</p>
-          <p className="text-3xl font-bold">{data.balancePoints} pt</p>
-        </section>
-
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold">家事カテゴリ</h2>
-            <div className="flex items-center gap-3 text-sm">
-              <Link className="underline" href="/family">
-                家族の状況
-              </Link>
-              <Link className="underline" href="/categories/manage">
-                カテゴリ管理
-              </Link>
-              <Link className="underline" href="/rewards">
-                ご褒美管理へ
-              </Link>
+        <section className="rounded-2xl border border-emerald-100 bg-white/90 p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">キャラ成長ステータス</h2>
+          {pet ? (
+            <div className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">
+              <p>系統: <span className="font-semibold">{pet.lineage ?? "未確定"}</span></p>
+              <p>ステージ: <span className="font-semibold">{pet.stage}</span></p>
+              <p>登録名刺数: <span className="font-semibold">{pet.cardCount}</span></p>
+              <p>
+                次進化: <span className="font-semibold">{pet.nextEvolutionAt ?? "最終進化済み"}</span>
+              </p>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {data.categories.map((category) => (
-              <button
-                key={category.id}
-                className="rounded-xl bg-white/90 px-4 py-3 text-left shadow-sm border border-rose-100 btn-ripple btn-press"
-                onClick={() => router.push(`/categories/${category.id}`)}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">
-                    {category.icon ?? iconFallbackMap[category.name] ?? "📌"}
-                  </span>
-                  <span>{category.name}</span>
-                </div>
-              </button>
-            ))}
-            {data.categories.length === 0 && (
-              <div className="col-span-2 rounded-xl border border-dashed border-slate-300 bg-white/80 p-4 text-sm text-slate-600">
-                <p className="font-medium">カテゴリがまだありません。</p>
-                <p>初期データを投入するとすぐに使い始められます。</p>
-                <button
-                  className="mt-3 w-full rounded-lg bg-slate-900 px-3 py-2 text-white disabled:opacity-60 btn-ripple btn-press"
-                  onClick={async () => {
-                    if (!data.profile?.family_id) return;
-                    setSeeding(true);
-                    setActionError(null);
-                    try {
-                      await seedInitialData(data.profile.family_id);
-                      await refresh();
-                    } catch (error) {
-                      setActionError(
-                        error instanceof Error ? error.message : "投入に失敗"
-                      );
-                    } finally {
-                      setSeeding(false);
-                    }
-                  }}
-                  disabled={seeding}
-                >
-                  {seeding ? "投入中..." : "初期データを投入"}
-                </button>
-              </div>
-            )}
-          </div>
+          ) : (
+            <p className="mt-2 text-sm text-slate-600">まだ名刺が登録されていません。</p>
+          )}
         </section>
 
-        <section className="space-y-3">
-          <h2 className="text-lg font-semibold">直近の家事（自分）</h2>
-          <div className="space-y-2">
-            {data.recent.length === 0 ? (
-              <div className="rounded-xl bg-white/90 p-4 shadow-sm">
-                <p className="font-medium">家事履歴がまだありません</p>
-                <p className="text-sm text-slate-500">
-                  カテゴリから家事を登録しましょう
-                </p>
-              </div>
-            ) : (
-              data.recent.map((item) => (
-                <div
-                  key={item.id}
-                  className="rounded-xl bg-white/90 p-4 shadow-sm border border-amber-100"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium">
-                        {item.task_name ?? "削除済みの家事"}
-                      </p>
-                      <p className="text-sm text-slate-500">
-                        {new Date(item.completed_at).toLocaleString()} /{" "}
-                        {item.points} pt
-                      </p>
-                    </div>
-                    <button
-                      className="text-sm text-red-600 underline disabled:opacity-60 btn-press"
-                      onClick={async () => {
-                        setDeletingId(item.id);
-                        setActionError(null);
-                        try {
-                          await deleteCompletion(item.id);
-                          await refresh();
-                        } catch (error) {
-                          setActionError(
-                            error instanceof Error ? error.message : "削除に失敗"
-                          );
-                        } finally {
-                          setDeletingId(null);
-                        }
-                      }}
-                      disabled={deletingId === item.id}
-                    >
-                      {deletingId === item.id ? "削除中..." : "削除"}
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+        <section className="rounded-2xl border border-cyan-100 bg-white/90 p-5 shadow-sm">
+          <h2 className="text-lg font-semibold">名刺を登録</h2>
+          <form className="mt-4 grid gap-3 sm:grid-cols-2" onSubmit={onCreateContact}>
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="名前 *"
+              value={form.name}
+              onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
+              required
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="会社名"
+              value={form.company}
+              onChange={(event) => setForm((prev) => ({ ...prev, company: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="メール"
+              value={form.email}
+              onChange={(event) => setForm((prev) => ({ ...prev, email: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="電話番号"
+              value={form.phone}
+              onChange={(event) => setForm((prev) => ({ ...prev, phone: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="役職"
+              value={form.title}
+              onChange={(event) => setForm((prev) => ({ ...prev, title: event.target.value }))}
+            />
+            <input
+              className="rounded-lg border border-slate-300 px-3 py-2"
+              placeholder="メモ"
+              value={form.memo}
+              onChange={(event) => setForm((prev) => ({ ...prev, memo: event.target.value }))}
+            />
+            <button
+              className="rounded-lg bg-teal-700 px-4 py-2 text-white disabled:opacity-60 btn-ripple btn-press sm:col-span-2"
+              type="submit"
+              disabled={saving}
+            >
+              {saving ? "登録中..." : "名刺を登録"}
+            </button>
+          </form>
         </section>
 
-        {actionError && <p className="text-sm text-red-600">{actionError}</p>}
+        <section className="rounded-2xl border border-orange-100 bg-white/90 p-5 shadow-sm">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h2 className="text-lg font-semibold">名刺一覧</h2>
+            <input
+              className="w-full max-w-xs rounded-lg border border-slate-300 px-3 py-2 text-sm"
+              placeholder="名前・会社・メールで検索"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+
+          {loading ? (
+            <p className="text-sm text-slate-600">読み込み中...</p>
+          ) : filteredContacts.length === 0 ? (
+            <p className="text-sm text-slate-600">一致する名刺がありません。</p>
+          ) : (
+            <div className="space-y-2">
+              {filteredContacts.map((contact) => (
+                <article key={contact.id} className="rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="font-semibold">{contact.name}</p>
+                  <p className="text-sm text-slate-600">{contact.company ?? "会社未設定"}</p>
+                  <p className="text-sm text-slate-600">{contact.email ?? "メール未設定"}</p>
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {message && <p className="text-sm text-slate-700">{message}</p>}
       </div>
     </main>
   );

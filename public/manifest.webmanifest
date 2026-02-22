@@ -1,12 +1,12 @@
 {
-  "name": "家族向け家事ポイント",
-  "short_name": "家事ポイント",
-  "description": "家事を記録し、ポイントでご褒美交換できる家族向けPWA",
+  "name": "名刺っち",
+  "short_name": "名刺っち",
+  "description": "名刺管理とキャラ育成を融合したPWA",
   "start_url": "/home",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#fff4e5",
-  "theme_color": "#0f172a",
+  "background_color": "#ecfeff",
+  "theme_color": "#0f766e",
   "icons": [
     {
       "src": "/icons/icon-192.png",

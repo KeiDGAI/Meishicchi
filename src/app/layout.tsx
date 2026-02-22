@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "家族向け家事ポイント",
-  description: "家事を記録し、ポイントでご褒美交換できる家族向けPWA",
+  title: "名刺っち",
+  description: "名刺管理とキャラ育成を融合したPWA",
   manifest: "/manifest.webmanifest",
-  themeColor: "#0f172a",
+  themeColor: "#0f766e",
   appleWebApp: {
     capable: true,
-    title: "家事ポイント",
+    title: "名刺っち",
     statusBarStyle: "default",
   },
   icons: {
@@ -43,13 +43,11 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="家事ポイント" />
+        <meta name="apple-mobile-web-app-title" content="名刺っち" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <QueryProvider>{children}</QueryProvider>
       </body>
     </html>
