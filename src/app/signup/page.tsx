@@ -12,35 +12,51 @@ export default function SignupPage() {
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const handleSignup = async (event: React.FormEvent) => {
     event.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccess(null);
 
-    const { data, error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          display_name: displayName,
+    try {
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName.trim(),
+          },
+          emailRedirectTo:
+            typeof window !== "undefined"
+              ? `${window.location.origin}/login`
+              : undefined,
         },
-      },
-    });
+      });
 
-    setLoading(false);
+      if (signUpError) {
+        setError(signUpError.message);
+        return;
+      }
 
-    if (signUpError) {
-      setError(signUpError.message);
-      return;
+      if (!data.session) {
+        setSuccess(
+          "登録を受け付けました。確認メールを開いてアカウントを有効化してください。"
+        );
+        return;
+      }
+
+      router.push("/home");
+    } catch (signupError) {
+      setError(
+        signupError instanceof Error
+          ? signupError.message
+          : "登録に失敗しました。環境変数やSupabase設定を確認してください。"
+      );
+    } finally {
+      setLoading(false);
     }
-
-    if (!data.session) {
-      setError("確認メールを開いてログインしてください。");
-      return;
-    }
-
-    router.push("/home");
   };
 
   return (
@@ -79,6 +95,7 @@ export default function SignupPage() {
             />
           </div>
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {success && <p className="text-sm text-emerald-700">{success}</p>}
           <button
             className="w-full rounded-lg bg-slate-900 px-4 py-2 text-white disabled:opacity-60 btn-ripple btn-press"
             type="submit"

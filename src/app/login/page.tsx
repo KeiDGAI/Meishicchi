@@ -16,16 +16,28 @@ export default function LoginPage() {
     event.preventDefault();
     setLoading(true);
     setError(null);
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    setLoading(false);
-    if (signInError) {
-      setError(signInError.message);
-      return;
+
+    try {
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        setError(signInError.message);
+        return;
+      }
+
+      router.push("/home");
+    } catch (loginError) {
+      setError(
+        loginError instanceof Error
+          ? loginError.message
+          : "ログインに失敗しました。環境変数やSupabase設定を確認してください。"
+      );
+    } finally {
+      setLoading(false);
     }
-    router.push("/home");
   };
 
   return (
